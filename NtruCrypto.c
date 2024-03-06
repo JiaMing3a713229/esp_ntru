@@ -489,15 +489,22 @@ static int check_key(struct NTRU *nt){
 
     struct PolyObj *Fp = mulpoly(nt->params.Fp, nt->params.fx, nt->params.p, "val_Fp");
     struct PolyObj *Fq = mulpoly(nt->params.Fq, nt->params.fx, nt->params.q, "val_Fq");
+    struct PolyObj *tar = (struct PolyObj *)malloc(sizeof(struct PolyObj));
+
+    int tar_coef[NTRU_N] = {0};
+    dec2arr(1, tar_coef);
+    init_poly(tar, "target", tar_coef);
     // print_poly(Fp);
     // print_poly(Fq);
-    if(coef_sum(Fp) == 1){
-        printf("Success generator Fp \r\n");
+    if(coef_sum(subpoly(tar, Fp, nt->params.p)) != 0){
+        printf("Generating Kp failed \r\n");
+        return -1;
     }
-    if(coef_sum(Fq) == 1){
-        printf("Success generator Fq \r\n");
+    if(coef_sum(subpoly(tar, Fq, nt->params.q)) != 0){
+        printf("Generating Kq failed \r\n");
+        return -1;
     }
-    
+    printf("Generating Key Successed \r\n");
     return 1;
 }
 
@@ -527,8 +534,8 @@ int key_gen(struct NTRU *nt, int *coef_f, int *coef_g){
     nt->print(nt->params.Fp);
     nt->params.Fq = nt->polyops.exgcdPoly((nt->params.fx), (nt->params.ring), (nt->params.q), "Fq");
     nt->print(nt->params.Fq);
-    // nt->params.Kp = nt->polyops.mulpoly(nt->params.Fq, nt->params.gx, nt->params.q, "kp");
-    // nt->print(nt->params.Kp);
+    nt->params.Kp = nt->polyops.mulpoly(nt->params.Fq, nt->params.gx, nt->params.q, "kp");
+    nt->print(nt->params.Kp);
     check_key(nt);
 
     return 1;
@@ -543,12 +550,11 @@ static int* encrypt(struct NTRU *self, int num)   // length of array is N
     srand(time(NULL));
     randomval = rand() % MAX_NUMBER;
     randomval = rand() % MAX_NUMBER;
-    // printf("randomval:%d \r\n", randomval);
+    
     struct PolyObj *mx = encoder(num, "m");
-    struct PolyObj *rx = encoder(randomval, "rx");
+    struct PolyObj *rx = encoder(2, "rx");
     
     print_poly(mx);
-    print_poly(rx);
 
     ret_poly = self->polyops.mulpoly(self->params.Kp, rx, self->params.q, "");
     for(int i = 0; i < NTRU_N; ++i){               
@@ -557,7 +563,6 @@ static int* encrypt(struct NTRU *self, int num)   // length of array is N
     }
 
     ret_poly = self->polyops.addpoly(ret_poly, mx, self->params.q, "cx");
-    
     print_poly(ret_poly);
     ret = ret_poly->coef;
 
