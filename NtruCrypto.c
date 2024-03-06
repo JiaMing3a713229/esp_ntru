@@ -339,6 +339,9 @@ static struct PolyObj *divpoly(struct PolyObj *dividend, struct PolyObj *divisio
     polycpy(tmp_dptr, dividend, "tmp_dptr");
     polycpy(tmp_sptr, division, "tmp_sptr");
     
+    print_poly(dividend);
+    print_poly(division);
+
     int inv_s = invOfnum(tmp_sptr->coef[tmp_sptr->degree], modulo_size);
     int deg_q = (tmp_dptr->degree - tmp_sptr->degree);
 
@@ -494,8 +497,8 @@ static int check_key(struct NTRU *nt){
     int tar_coef[NTRU_N] = {0};
     dec2arr(1, tar_coef);
     init_poly(tar, "target", tar_coef);
-    // print_poly(Fp);
-    // print_poly(Fq);
+    print_poly(Fp);
+    print_poly(Fq);
     if(coef_sum(subpoly(tar, Fp, nt->params.p)) != 0){
         printf("Generating Kp failed \r\n");
         return -1;
@@ -552,9 +555,9 @@ static int* encrypt(struct NTRU *self, int num)   // length of array is N
     randomval = rand() % MAX_NUMBER;
     
     struct PolyObj *mx = encoder(num, "m");
-    struct PolyObj *rx = encoder(2, "rx");
+    struct PolyObj *rx = encoder(0, "rx");
     
-    print_poly(mx);
+    // print_poly(mx);
 
     ret_poly = self->polyops.mulpoly(self->params.Kp, rx, self->params.q, "");
     for(int i = 0; i < NTRU_N; ++i){               
@@ -563,7 +566,7 @@ static int* encrypt(struct NTRU *self, int num)   // length of array is N
     }
 
     ret_poly = self->polyops.addpoly(ret_poly, mx, self->params.q, "cx");
-    print_poly(ret_poly);
+    // print_poly(ret_poly);
     ret = ret_poly->coef;
 
     return ret;
@@ -579,7 +582,7 @@ static int decrypt(struct NTRU *nt,int *self){
 
     ax = nt->polyops.mulpoly(cx, nt->params.fx, nt->params.q, "ax");
     ret = nt->polyops.mulpoly(nt->params.Fp, ax, nt->params.p, "mx");
-    print_poly(ret);
+    // print_poly(ret);
     iret = decoder(ret);
     return iret;
 }
