@@ -138,6 +138,19 @@ static void print_poly(struct PolyObj *self)
     printf("degree: %3d \r\n", self->degree);
 }
 
+static void check_PolyObj(struct PolyObj *self){
+    if(self == NULL){
+        printf("Error with PolyObj memory \r\n");
+    }
+    
+    if(self -> coef == NULL){
+        printf("Error with coef memory \r\n");
+    }
+
+    print_poly(self);
+    printf("degree of %s : %d, buffer size: %d \r\n", self -> poly_name, self -> degree, self -> buf_size);
+}
+
 static void _free_poly(struct PolyObj *self)
 {
     free(self->coef);
@@ -147,18 +160,16 @@ static void _free_poly(struct PolyObj *self)
 
 int init_poly(struct PolyObj *self, const char *name, int coef[])
 {
-    // int degree = (sizeof(coef) / sizeof(coef[0]));
-    int degree = (NTRU_N - 1);
+
+    int degree = NTRU_N - 1;
     while (coef[degree] == 0 && degree > 0)
     {
         degree--;
     }
 
-    int sizeof_poly = NTRU_N;
     struct PolyObj *ptr = self;
-    ptr->coef = (int *)malloc(sizeof(int) * sizeof_poly);
-    memset(ptr->coef, 0, sizeof(int) * sizeof_poly);
-    // print_poly(self->poly);
+    ptr->coef = (int *)malloc(sizeof(int) * (NTRU_N));
+    memset(ptr->coef, 0, sizeof(int) * (NTRU_N));
     if (ptr->coef == NULL)
     {
         return -1;
@@ -169,10 +180,9 @@ int init_poly(struct PolyObj *self, const char *name, int coef[])
         *(ptr->coef + i) = coef[i];
     }
 
-    self->size_ = sizeof_poly;
+    self->buf_size = NTRU_N;
     self->degree = degree;
     strcpy(ptr->poly_name, name);
-    
     return 1;
 }
 
@@ -196,7 +206,7 @@ int init_ring(struct PolyObj *self, const char *name)
     self->degree = degree;
     strcpy(self->poly_name, name);
     int arr_size = sizeof(coef_ring) / sizeof(coef_ring[0]);
-    self->size_ = (arr_size == (NTRU_N + 1)) ? (arr_size):(-1); //檢查機制
+    self->buf_size = (arr_size == (NTRU_N + 1)) ? (arr_size):(-1); //檢查機制
     return 1;
 }
 /*
@@ -212,99 +222,23 @@ int polycpy(struct PolyObj *dest, struct PolyObj *src, char *name)
         return -1;
     }
 
-    struct PolyObj *sptr = src;
-    struct PolyObj *dptr = dest;
-    dptr->coef = (int *)malloc(sizeof(int) * (src->size_));   // the size of Polynomial
-    if (dptr->coef == NULL || sptr->coef == NULL)
+    dest -> coef = (int *)malloc(sizeof(int) * src->buf_size);
+    memset(dest->coef, 0, sizeof(int) * src->buf_size);
+
+    if (dest->coef == NULL || src->coef == NULL)
     {
-        printf("error with polycpy");
+        printf("error with polycpy \r\n");
         return -1;
     }
-
-    for (int i = 0; i < sptr->size_; ++i)
-    {
-        *(dptr->coef + i) = *(sptr->coef + i);
+    
+    for(int i = 0; i <= src->degree; ++i){
+        dest->coef[i] = src->coef[i];
     }
 
-    strcpy(dptr->poly_name, (const char*)name);
-    dptr->degree = sptr->degree;
-    dptr->size_ = sptr->size_;
-
+    strcpy(dest->poly_name, (const char*)name);
+    dest->degree = src->degree;
+    dest->buf_size = src->buf_size;
     return 1;
-}
-
-/*
-** @brief dividend 是被除數
-** @brief division 是除數
-** return ret[0] 是商
-** return ret[1] 是餘數
-*/
-static struct PolyObj *divpoly(struct PolyObj *dividend, struct PolyObj *division, int modulo_size)
-{   
-    
-    // printf("-----------------\r\n");
-    // printf("div:\r\n");
-    // print_poly(dividend);
-    // printf("division\r\n");
-    // print_poly(division);
-
-
-    struct PolyObj poly_div;
-    polycpy(&poly_div, dividend, "tmp");
-    struct PolyObj *div = &poly_div;
-
-    if (dividend == NULL || division == NULL)
-    {   
-        printf("error with dividend or division  \r\n");
-        return NULL;
-    } // 例外處理
-
-    struct PolyObj *ret = (struct PolyObj*)malloc(sizeof(struct PolyObj) * 2);
-    struct PolyObj *d_ptr = div;
-    struct PolyObj *s_ptr = division;
-    
-    int q_degree = ((dividend->degree) - (division->degree));
-    int q_coef[NTRU_N];
-    memset(q_coef, 0, sizeof(q_coef));
-
-    // int r_degree = (division->poly->degree - 1);
-    int r_coef[NTRU_N];
-    memset(r_coef, 0, sizeof(r_coef));
-
-    int inv_divsion = invOfnum(division->coef[division->degree], modulo_size);
-    int q_index = q_degree;
-    while(d_ptr->degree >= s_ptr->degree){
-
-        int q = (d_ptr -> coef[d_ptr->degree] * inv_divsion) % modulo_size;
-        for(int i = 0; i <= s_ptr->degree; i++){
-            d_ptr->coef[d_ptr->degree - i] -= (q * s_ptr->coef[s_ptr->degree - i]);
-            d_ptr->coef[d_ptr->degree - i] %= modulo_size;
-            d_ptr->coef[d_ptr->degree - i] = CENTERED_ZERO(d_ptr->coef[d_ptr->degree - i], modulo_size);
-        }
-
-
-        q_coef[q_index] = CENTERED_ZERO(q, modulo_size);
-        q_index--;
-        d_ptr->degree--;
-        
-    }
-    
-    if(d_ptr->degree < 0){
-        d_ptr->degree++;
-    }
-
-
-    init_poly(&ret[0], "quotient", q_coef);
-    polycpy(&ret[1], div, "reminder");
-
-    // printf("quotient:\r\n");
-    // print_poly(&ret[0]);
-    // printf("reminder:\r\n");
-    // print_poly(&ret[1]);
-    // printf("---------------------\r\n");
-    
-    return ret;
-
 }
 
 static struct PolyObj* mulpoly(struct PolyObj *a, struct PolyObj *b, int modulo_size, char *name)
@@ -313,11 +247,11 @@ static struct PolyObj* mulpoly(struct PolyObj *a, struct PolyObj *b, int modulo_
     struct PolyObj *ret = (struct PolyObj*)malloc(sizeof(struct PolyObj)); 
 
     int ret_coef[NTRU_N];
-    memset(&ret_coef[0], 0, sizeof(ret_coef));
+    memset(&ret_coef, 0, sizeof(ret_coef));
     
     for(int i =0; i <= (a->degree); ++i){
         for(int j = 0; j <= (b->degree); ++j){
-            ret_coef[(i + j) % NTRU_N] += (a->coef[i]) * (b->coef[j]);
+            ret_coef[(i + j) % NTRU_N] += ((a->coef[i]) * (b->coef[j]));
             ret_coef[(i + j) % NTRU_N] %= modulo_size;
         }
     }
@@ -325,8 +259,7 @@ static struct PolyObj* mulpoly(struct PolyObj *a, struct PolyObj *b, int modulo_
     for(int i = 0; i < NTRU_N; ++i){
         ret_coef[i] = CENTERED_ZERO(ret_coef[i], modulo_size);
     }
-    
-    
+
     init_poly(ret, name, ret_coef);
     return ret;
 }
@@ -341,8 +274,6 @@ static struct PolyObj* addpoly(struct PolyObj *a, struct PolyObj *b, int modulo_
     struct PolyObj *ret = (struct PolyObj*)malloc(sizeof(struct PolyObj));
     int ret_coef[NTRU_N];
     memset(&ret_coef, 0, sizeof(ret_coef));
-
-    // ret->poly->degree = (a->poly->degree > b->poly->degree) ? (a->poly->degree) : (b->poly->degree);
 
     if(a->degree > b->degree){
         polycpy(ret, a, name);
@@ -368,20 +299,85 @@ static struct PolyObj* addpoly(struct PolyObj *a, struct PolyObj *b, int modulo_
 static struct PolyObj* subpoly(struct PolyObj *a, struct PolyObj *b, int modulo_size){
 
     struct PolyObj *ret = (struct PolyObj*)malloc(sizeof(struct PolyObj));
-    int ret_coef[NTRU_N];
+    int arr_size = 0;
+    if(a->degree >= b->degree){
+        arr_size = a->buf_size;
+    }else{
+        arr_size = b->buf_size;
+    }
+    int ret_coef[arr_size];
     memset(&ret_coef, 0, sizeof(ret_coef));
 
-    for(int i = 0; i < NTRU_N; ++i){
+    for(int i = 0; i < arr_size; ++i){
         
-        ret_coef[i] = (*(a->coef + i)) - (b->coef[i]);
+        ret_coef[i] = a->coef[i] - b->coef[i];
         ret_coef[i] = CENTERED_ZERO(ret_coef[i], modulo_size);
         
     }
-    
     init_poly(ret, "", ret_coef);
     return ret;
     
 }
+
+
+/*
+** @brief dividend 是被除數
+** @brief division 是除數
+** return ret[0] 是商
+** return ret[1] 是餘數
+*/
+static struct PolyObj *divpoly(struct PolyObj *dividend, struct PolyObj *division, int modulo_size)
+{   
+    // printf("***********div************\r\n");
+    // print_poly(dividend);
+    // print_poly(division);
+
+    struct PolyObj *ret = (struct PolyObj*)malloc((sizeof(struct PolyObj)) * 2);
+    struct PolyObj *tmp_dptr = (struct PolyObj*)malloc(sizeof(struct PolyObj));
+    struct PolyObj *tmp_sptr = (struct PolyObj*)malloc(sizeof(struct PolyObj));
+
+    polycpy(tmp_dptr, dividend, "tmp_dptr");
+    polycpy(tmp_sptr, division, "tmp_sptr");
+    
+    int inv_s = invOfnum(tmp_sptr->coef[tmp_sptr->degree], modulo_size);
+    int deg_q = (tmp_dptr->degree - tmp_sptr->degree);
+
+    int q_arr[NTRU_N];
+    memset(q_arr, 0, sizeof(q_arr));
+
+    while(tmp_dptr->degree >= tmp_sptr->degree){
+
+        int q_coef = (tmp_dptr->coef[tmp_dptr->degree]) * inv_s;
+        for(int i = 0; i <= tmp_sptr->degree; ++i){
+            tmp_dptr->coef[i + deg_q] -= (tmp_sptr->coef[i] * q_coef);
+            tmp_dptr->coef[i + deg_q] = CENTERED_ZERO(tmp_dptr->coef[i + deg_q], modulo_size);
+        }
+        // print_poly(tmp_dptr);
+        if(deg_q >= 0){
+            q_arr[deg_q] = CENTERED_ZERO(q_coef, modulo_size);
+            deg_q--;  
+        }
+        
+        while((tmp_dptr->coef[tmp_dptr->degree]) == 0){
+            tmp_dptr->degree--;
+        }
+
+        
+    }
+
+    if(tmp_dptr->degree < 0){
+        tmp_dptr->degree++;
+    }
+
+    init_poly(&ret[0], "quotient", q_arr);
+    polycpy(&ret[1], tmp_dptr, "reminder");
+    
+    _free_poly(tmp_dptr);
+    _free_poly(tmp_sptr);
+    return ret;
+    
+}
+
 static int coef_sum(struct PolyObj *self)
 {   
     int ret = 0;
@@ -400,7 +396,7 @@ static struct PolyObj* exgcdPoly(struct PolyObj *a, struct PolyObj *b, int modul
 
     struct PolyObj *ret = (struct PolyObj*)malloc(sizeof(struct PolyObj));
 
-    struct PolyObj *d;
+    struct PolyObj d;
     struct PolyObj tmp_a;
     struct PolyObj tmp_b;
     struct PolyObj d1;
@@ -408,14 +404,18 @@ static struct PolyObj* exgcdPoly(struct PolyObj *a, struct PolyObj *b, int modul
     struct PolyObj r;
     struct PolyObj q;
     
-    int d1_coef[NTRU_N];
+    
+    int d1_coef[NTRU_N] = {0};
     dec2arr(0, d1_coef);
-    int d2_coef[NTRU_N];
+    int d2_coef[NTRU_N] = {0};
     dec2arr(1, d2_coef);
-    int r_coef[NTRU_N];
-    dec2arr(1, r_coef);
-    int q_coef[NTRU_N];
+    int r_coef[NTRU_N] = {0};
+    dec2arr(0, r_coef);
+    int q_coef[NTRU_N] = {0};
     dec2arr(1, q_coef);
+    int d_coef[NTRU_N] = {0};
+    dec2arr(0, d_coef);
+    
     
     polycpy(&tmp_a, a, "tmp_a");
     polycpy(&tmp_b, b, "tmp_b");
@@ -423,21 +423,37 @@ static struct PolyObj* exgcdPoly(struct PolyObj *a, struct PolyObj *b, int modul
     init_poly(&d2, "d2", d2_coef);
     init_poly(&r, "r", r_coef);
     init_poly(&q, "q", q_coef);
-    
-    while(coef_sum(&tmp_a) != 0){
-        
+    init_poly(&d, "d", d_coef);
+
+    // printf("%d \r\n", coef_sum(&r));
+    while(coef_sum(&r) != 1){
+
         struct PolyObj *div = divpoly(&tmp_b, &tmp_a, modulo_size);
         q = div[0];
         r = div[1];
-        d = subpoly(&d1, mulpoly(&q, &d2, modulo_size, ""), modulo_size);       // d = d1 - q * d2
+        d = *(subpoly(&d1, mulpoly(&q, &d2, modulo_size, ""), modulo_size));       // d = d1 - q * d2
+
+        // printf("-----------------------------------------\r\n");
+        // print_poly(&tmp_b);
+        // print_poly(&tmp_a);
+        // print_poly(&q);
+        // print_poly(&r);
+
+
         polycpy(&tmp_b, &tmp_a, "tmp_b");                                       // a = b;
         polycpy(&tmp_a, &r, "tmp_a");                                           // b = r;
         polycpy(&d1, &d2, "d1");                                                // d1 = d1
-        polycpy(&d2, d, "d2");                                                  // d2 = d
+        polycpy(&d2, &d, "d2");                                                  // d2 = d
+
+        // print_poly(&d);
+        
+        // printf("-----------------------------------------\r\n");
+        // print_poly(mulpoly(a, &d1, modulo_size, ""));
+        // print_poly(mulpoly(a, &d2, modulo_size, ""));
+        
     }
     
-    polycpy(ret, &d1, name);
-    _free_poly(d);
+    polycpy(ret, &d, name);
     return ret;
     
 }
@@ -469,6 +485,22 @@ static int decoder(struct PolyObj *self){
 
 }
 
+static int check_key(struct NTRU *nt){
+
+    struct PolyObj *Fp = mulpoly(nt->params.Fp, nt->params.fx, nt->params.p, "val_Fp");
+    struct PolyObj *Fq = mulpoly(nt->params.Fq, nt->params.fx, nt->params.q, "val_Fq");
+    // print_poly(Fp);
+    // print_poly(Fq);
+    if(coef_sum(Fp) == 1){
+        printf("Success generator Fp \r\n");
+    }
+    if(coef_sum(Fq) == 1){
+        printf("Success generator Fq \r\n");
+    }
+    
+    return 1;
+}
+
 int key_gen(struct NTRU *nt, int *coef_f, int *coef_g){
 
     if(nt == NULL){
@@ -495,9 +527,9 @@ int key_gen(struct NTRU *nt, int *coef_f, int *coef_g){
     nt->print(nt->params.Fp);
     nt->params.Fq = nt->polyops.exgcdPoly((nt->params.fx), (nt->params.ring), (nt->params.q), "Fq");
     nt->print(nt->params.Fq);
-    nt->params.Kp = nt->polyops.mulpoly(nt->params.Fq, nt->params.gx, nt->params.q, "kp");
-    nt->print(nt->params.Kp);
-
+    // nt->params.Kp = nt->polyops.mulpoly(nt->params.Fq, nt->params.gx, nt->params.q, "kp");
+    // nt->print(nt->params.Kp);
+    check_key(nt);
 
     return 1;
 }
@@ -515,8 +547,8 @@ static int* encrypt(struct NTRU *self, int num)   // length of array is N
     struct PolyObj *mx = encoder(num, "m");
     struct PolyObj *rx = encoder(randomval, "rx");
     
-    // print_poly(mx);
-    // print_poly(rx);
+    print_poly(mx);
+    print_poly(rx);
 
     ret_poly = self->polyops.mulpoly(self->params.Kp, rx, self->params.q, "");
     for(int i = 0; i < NTRU_N; ++i){               
@@ -526,7 +558,7 @@ static int* encrypt(struct NTRU *self, int num)   // length of array is N
 
     ret_poly = self->polyops.addpoly(ret_poly, mx, self->params.q, "cx");
     
-    // print_poly(ret_poly);
+    print_poly(ret_poly);
     ret = ret_poly->coef;
 
     return ret;
@@ -542,10 +574,12 @@ static int decrypt(struct NTRU *nt,int *self){
 
     ax = nt->polyops.mulpoly(cx, nt->params.fx, nt->params.q, "ax");
     ret = nt->polyops.mulpoly(nt->params.Fp, ax, nt->params.p, "mx");
-    // print_poly(ret);
+    print_poly(ret);
     iret = decoder(ret);
     return iret;
 }
+
+
 
 int init_nt(struct NTRU *self, int N, int p, int q)
 {
@@ -583,5 +617,15 @@ int init_nt(struct NTRU *self, int N, int p, int q)
     return 1;
 };
 
-void testfun(struct NTRU *nt){
+
+
+void test_ops(struct NTRU *nt){
+
+    printf("--------TEST--------\r\n");
+    struct PolyObj *ret1 = nt->polyops.exgcdPoly(nt->params.fx, nt->params.ring, nt->params.p, "Fp");
+    print_poly(mulpoly(ret1, nt->params.fx, nt->params.p, "val_Fp"));
+
+    struct PolyObj *ret2 = nt->polyops.exgcdPoly(nt->params.fx, nt->params.ring, nt->params.q, "Fq");
+    print_poly(mulpoly(ret2, nt->params.fx, nt->params.q, "val_Fq"));
+    
 }
