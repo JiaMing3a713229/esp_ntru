@@ -7,9 +7,14 @@
 
 
 /*
-** @brief this function is used to get gcd(a, b)
-** return : the number of gcd(a,b)
-*/
+ * This function calculates the greatest common divisor (GCD) of two integers.
+ * It uses the Euclidean algorithm recursively to find the GCD.
+ * Parameters:
+ * - a: The first integer.
+ * - b: The second integer.
+ * Returns:
+ * The greatest common divisor of 'a' and 'b'.
+ */
 static int gcdOf(int a, int b)
 {
 
@@ -26,6 +31,17 @@ static int gcdOf(int a, int b)
     }
     return gcdOf(b, (a % b));
 }
+
+/*
+ * This function calculates the modular multiplicative inverse of a number 'num'
+ * modulo 'mod_t'. It first checks if the inverse exists by verifying that 'num' and
+ * 'mod_t' are coprime. If they are not, it prints an error message and returns 0.
+ * Parameters:
+ * - num: The number for which the inverse is to be calculated.
+ * - mod_t: The modulo value.
+ * Returns:
+ * The modular multiplicative inverse of 'num' modulo 'mod_t'.
+ */
 
 static int invOfnum(int num, int mod_t)
 {
@@ -80,18 +96,12 @@ static int *dec2bin(int number, int bits)
         index--;
     }
 
-    // for(int i = 0; i < bits; ++i){
-    //     printf("%d ", *(binary_array + i));
-    // }
-    // printf("\r\n");
-
     return binary_array;
 }
 
 int dec2arr(int number, int arr[])
 {   
     
-    // printf("max_number:%d \r\n", MAX_NUMBER);
     if (number > MAX_NUMBER)
     {
         printf("error with number \r\n");
@@ -117,25 +127,47 @@ int dec2arr(int number, int arr[])
         arr[index - i] = *(bin_array + i);
     }
 
+    free(bin_array);
     return 1;
 }
 
 
 
-///////////////////////////////////////////////////////////////////////////////////////////
+/*
+ * This function prints the polynomial represented by the given 'PolyObj' structure.
+ * Parameters:
+ * - self: Pointer to the 'PolyObj' structure representing the polynomial.
+ * Note: Assumes 'self' is not NULL.
+ */
+
+static void println_poly(struct PolyObj *self)
+{   
+    struct PolyObj *ptr = self;
+    if(ptr == NULL){
+        printf("error with print_poly memory allocate \r\n");
+    }
+    printf("PolyObj %s: ", ptr->poly_name);
+    for (int i = 0; i < (ptr->buf_size - 1); ++i)
+    {   
+        printf("%4d ", *(ptr->coef + i));
+    }
+    printf("%4d ", *(ptr->coef + (ptr->buf_size - 1)));
+    printf("| degree: %2d \r\n", self->degree);
+}
+
 static void print_poly(struct PolyObj *self)
 {   
     struct PolyObj *ptr = self;
     if(ptr == NULL){
         printf("error with print_poly memory allocate \r\n");
     }
-    printf("Polynomail %10s: ", ptr->poly_name);
-    for (int i = 0; i < ptr->degree; ++i)
+    printf("PolyObj %s: ", ptr->poly_name);
+    for (int i = 0; i < (ptr->buf_size - 1); ++i)
     {   
-        printf("%3d ", *(ptr->coef + i));
+        printf("%4d ", *(ptr->coef + i));
     }
-    printf("%3d \t", *(ptr->coef + (ptr->degree)));
-    printf("degree: %3d \r\n", self->degree);
+    printf("%4d ", *(ptr->coef + (ptr->buf_size - 1)));
+    printf("| degree: %2d |", self->degree);
 }
 
 static void check_PolyObj(struct PolyObj *self){
@@ -147,7 +179,7 @@ static void check_PolyObj(struct PolyObj *self){
         printf("Error with coef memory \r\n");
     }
 
-    print_poly(self);
+    println_poly(self);
     printf("degree of %s : %d, buffer size: %d \r\n", self -> poly_name, self -> degree, self -> buf_size);
 }
 
@@ -155,6 +187,7 @@ static void _free_poly(struct PolyObj *self)
 {
     free(self->coef);
     self->coef = NULL;
+    free(self);
 
 }
 
@@ -209,10 +242,19 @@ int init_ring(struct PolyObj *self, const char *name)
     self->buf_size = (arr_size == (NTRU_N + 1)) ? (arr_size):(-1); //檢查機制
     return 1;
 }
+
 /*
-** dest 為複製目標 類型為struct Poly
-** src  為參考來源 類型為struct Poly
-*/
+ * This function copies the contents of one polynomial represented by 'src'
+ * to another polynomial represented by 'dest', and assigns a given name to 'dest'.
+ * Parameters:
+ * - dest: Pointer to the destination 'PolyObj' structure where the polynomial will be copied.
+ * - src: Pointer to the source 'PolyObj' structure from which the polynomial will be copied.
+ * - name: Pointer to the string containing the name to be assigned to the destination polynomial.
+ * Returns:
+ * - 1 if the copy operation is successful.
+ * - -1 if there's an error with memory allocation or if either 'dest' or 'src' is NULL.
+ */
+
 int polycpy(struct PolyObj *dest, struct PolyObj *src, char *name)
 {
 
@@ -221,10 +263,8 @@ int polycpy(struct PolyObj *dest, struct PolyObj *src, char *name)
         printf("error with allocate memory \r\n");
         return -1;
     }
-
     dest -> coef = (int *)malloc(sizeof(int) * src->buf_size);
     memset(dest->coef, 0, sizeof(int) * src->buf_size);
-
     if (dest->coef == NULL || src->coef == NULL)
     {
         printf("error with polycpy \r\n");
@@ -339,8 +379,8 @@ static struct PolyObj *divpoly(struct PolyObj *dividend, struct PolyObj *divisio
     polycpy(tmp_dptr, dividend, "tmp_dptr");
     polycpy(tmp_sptr, division, "tmp_sptr");
     
-    print_poly(dividend);
-    print_poly(division);
+    // print_poly(dividend);
+    // print_poly(division);
 
     int inv_s = invOfnum(tmp_sptr->coef[tmp_sptr->degree], modulo_size);
     int deg_q = (tmp_dptr->degree - tmp_sptr->degree);
@@ -497,8 +537,12 @@ static int check_key(struct NTRU *nt){
     int tar_coef[NTRU_N] = {0};
     dec2arr(1, tar_coef);
     init_poly(tar, "target", tar_coef);
-    print_poly(Fp);
-    print_poly(Fq);
+
+#ifdef VALIDATION_MODE
+    // println_poly(Fp);
+    // println_poly(Fq);
+#endif
+
     if(coef_sum(subpoly(tar, Fp, nt->params.p)) != 0){
         printf("Generating Kp failed \r\n");
         return -1;
@@ -508,11 +552,14 @@ static int check_key(struct NTRU *nt){
         return -1;
     }
     printf("Generating Key Successed \r\n");
+
+    _free_poly(tar);
     return 1;
 }
 
 int key_gen(struct NTRU *nt, int *coef_f, int *coef_g){
 
+    
     if(nt == NULL){
         return -1;
     }
@@ -521,6 +568,7 @@ int key_gen(struct NTRU *nt, int *coef_f, int *coef_g){
     nt->params.Fq = (struct PolyObj*)malloc(sizeof(struct PolyObj));
     nt->params.Kp = (struct PolyObj*)malloc(sizeof(struct PolyObj));
 
+    printf("-------------------key Generator step-------------------\r\n");
     if(nt->poly(nt->params.fx, "fx", coef_f)){
         nt->print(nt->params.fx);
     }
@@ -533,41 +581,53 @@ int key_gen(struct NTRU *nt, int *coef_f, int *coef_g){
         nt->print(nt->params.ring);
     }
 
-    nt->params.Fp = nt->polyops.exgcdPoly(nt->params.fx, nt->params.ring, nt->params.p, "Fp");
+    nt->params.Fp = exgcdPoly(nt->params.fx, nt->params.ring, nt->params.p, "Fp");
     nt->print(nt->params.Fp);
-    nt->params.Fq = nt->polyops.exgcdPoly((nt->params.fx), (nt->params.ring), (nt->params.q), "Fq");
+    nt->params.Fq = exgcdPoly((nt->params.fx), (nt->params.ring), (nt->params.q), "Fq");
     nt->print(nt->params.Fq);
-    nt->params.Kp = nt->polyops.mulpoly(nt->params.Fq, nt->params.gx, nt->params.q, "kp");
+    nt->params.Kp = mulpoly(nt->params.Fq, nt->params.gx, nt->params.q, "kp");
     nt->print(nt->params.Kp);
-    check_key(nt);
+
+    if(check_key(nt) == -1){
+        return -1;
+    }
+    printf("-------------------key-Generator-step-End---------------\r\n");
 
     return 1;
 }
 
-static int* encrypt(struct NTRU *self, int num)   // length of array is N
+static int* encrypt(struct NTRU *self, int num, int randnum)   // length of array is N
 {
     int randomval;
     int *ret = (int*)malloc(sizeof(int) * NTRU_N);
     struct PolyObj *ret_poly = (struct PolyObj*)malloc(sizeof(struct PolyObj));
-
-    srand(time(NULL));
-    randomval = rand() % MAX_NUMBER;
-    randomval = rand() % MAX_NUMBER;
     
     struct PolyObj *mx = encoder(num, "m");
-    struct PolyObj *rx = encoder(0, "rx");
+    struct PolyObj *rx = encoder(randnum, "rx");
     
-    // print_poly(mx);
-
-    ret_poly = self->polyops.mulpoly(self->params.Kp, rx, self->params.q, "");
+    ret_poly = mulpoly(self->params.Kp, rx, self->params.q, "");
     for(int i = 0; i < NTRU_N; ++i){               
         ret_poly->coef[i] *= self->params.p;
         ret_poly->coef[i] = CENTERED_ZERO(ret_poly->coef[i], self->params.q);
     }
 
-    ret_poly = self->polyops.addpoly(ret_poly, mx, self->params.q, "cx");
-    // print_poly(ret_poly);
-    ret = ret_poly->coef;
+    struct PolyObj *ret_poly_ = addpoly(ret_poly, mx, self->params.q, "cx");
+
+#ifdef VALIDATION_MODE
+    // print_poly(mx);
+    // println_poly(ret_poly);
+#endif
+
+
+    for(int i = 0; i < ret_poly->buf_size; ++i){
+        ret[i] = ret_poly_->coef[i];
+    }
+
+
+    _free_poly(mx);
+    _free_poly(rx);
+    _free_poly(ret_poly);
+    _free_poly(ret_poly_);
 
     return ret;
 }
@@ -580,10 +640,20 @@ static int decrypt(struct NTRU *nt,int *self){
     struct PolyObj *cx = (struct PolyObj*)malloc(sizeof(struct PolyObj));
     nt->poly(cx, "cx", self);
 
-    ax = nt->polyops.mulpoly(cx, nt->params.fx, nt->params.q, "ax");
-    ret = nt->polyops.mulpoly(nt->params.Fp, ax, nt->params.p, "mx");
-    // print_poly(ret);
+    ax = mulpoly(cx, nt->params.fx, nt->params.q, "ax");
+    ret = mulpoly(nt->params.Fp, ax, nt->params.p, "mx");
+
+#ifdef VALIDATION_MODE
+    print_poly(cx);
+    print_poly(ret);
+#endif
+
     iret = decoder(ret);
+
+    _free_poly(ax);
+    _free_poly(ret);
+    _free_poly(cx);
+
     return iret;
 }
 
@@ -605,35 +675,18 @@ int init_nt(struct NTRU *self, int N, int p, int q)
     (self->params.gx) = (struct PolyObj*)malloc(sizeof(struct PolyObj));
     (self->params.ring) = (struct PolyObj*)malloc(sizeof(struct PolyObj));
 
-    self->modops.gcdOf = gcdOf;
-    self->modops.invOfnum = invOfnum;
+
 
     self->poly = init_poly;
     self->ring = init_ring;
-    self->polyops.divpoly = divpoly;
-    self->polyops.mulpoly = mulpoly;
-    self->polyops.exgcdPoly = exgcdPoly;
-    self->polyops.addpoly = addpoly;
-    self->polyops.subpoly = subpoly;
 
     self->print = print_poly;
+    self->println = println_poly;
     self->free = _free_poly;
 
     self->encrypt = encrypt;
     self->decrypt = decrypt;
-
+    self->key_gen = key_gen;
     return 1;
 };
 
-
-
-void test_ops(struct NTRU *nt){
-
-    printf("--------TEST--------\r\n");
-    struct PolyObj *ret1 = nt->polyops.exgcdPoly(nt->params.fx, nt->params.ring, nt->params.p, "Fp");
-    print_poly(mulpoly(ret1, nt->params.fx, nt->params.p, "val_Fp"));
-
-    struct PolyObj *ret2 = nt->polyops.exgcdPoly(nt->params.fx, nt->params.ring, nt->params.q, "Fq");
-    print_poly(mulpoly(ret2, nt->params.fx, nt->params.q, "val_Fq"));
-    
-}
