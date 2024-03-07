@@ -117,6 +117,7 @@ int dec2arr(int number, int arr[])
         arr[index - i] = *(bin_array + i);
     }
 
+    free(bin_array);
     return 1;
 }
 
@@ -155,6 +156,7 @@ static void _free_poly(struct PolyObj *self)
 {
     free(self->coef);
     self->coef = NULL;
+    free(self);
 
 }
 
@@ -221,10 +223,8 @@ int polycpy(struct PolyObj *dest, struct PolyObj *src, char *name)
         printf("error with allocate memory \r\n");
         return -1;
     }
-
     dest -> coef = (int *)malloc(sizeof(int) * src->buf_size);
     memset(dest->coef, 0, sizeof(int) * src->buf_size);
-
     if (dest->coef == NULL || src->coef == NULL)
     {
         printf("error with polycpy \r\n");
@@ -339,8 +339,8 @@ static struct PolyObj *divpoly(struct PolyObj *dividend, struct PolyObj *divisio
     polycpy(tmp_dptr, dividend, "tmp_dptr");
     polycpy(tmp_sptr, division, "tmp_sptr");
     
-    print_poly(dividend);
-    print_poly(division);
+    // print_poly(dividend);
+    // print_poly(division);
 
     int inv_s = invOfnum(tmp_sptr->coef[tmp_sptr->degree], modulo_size);
     int deg_q = (tmp_dptr->degree - tmp_sptr->degree);
@@ -497,8 +497,12 @@ static int check_key(struct NTRU *nt){
     int tar_coef[NTRU_N] = {0};
     dec2arr(1, tar_coef);
     init_poly(tar, "target", tar_coef);
+
+#ifdef VALIDATION_MODE
     print_poly(Fp);
     print_poly(Fq);
+#endif
+
     if(coef_sum(subpoly(tar, Fp, nt->params.p)) != 0){
         printf("Generating Kp failed \r\n");
         return -1;
@@ -508,6 +512,8 @@ static int check_key(struct NTRU *nt){
         return -1;
     }
     printf("Generating Key Successed \r\n");
+
+    _free_poly(tar);
     return 1;
 }
 
@@ -521,6 +527,7 @@ int key_gen(struct NTRU *nt, int *coef_f, int *coef_g){
     nt->params.Fq = (struct PolyObj*)malloc(sizeof(struct PolyObj));
     nt->params.Kp = (struct PolyObj*)malloc(sizeof(struct PolyObj));
 
+    printf("-------------------key Generator step-------------------\r\n");
     if(nt->poly(nt->params.fx, "fx", coef_f)){
         nt->print(nt->params.fx);
     }
@@ -539,7 +546,11 @@ int key_gen(struct NTRU *nt, int *coef_f, int *coef_g){
     nt->print(nt->params.Fq);
     nt->params.Kp = nt->polyops.mulpoly(nt->params.Fq, nt->params.gx, nt->params.q, "kp");
     nt->print(nt->params.Kp);
-    check_key(nt);
+
+    if(check_key(nt) == -1){
+        return -1;
+    }
+    printf("-------------------key-Generator-step-End---------------\r\n");
 
     return 1;
 }
@@ -549,25 +560,33 @@ static int* encrypt(struct NTRU *self, int num)   // length of array is N
     int randomval;
     int *ret = (int*)malloc(sizeof(int) * NTRU_N);
     struct PolyObj *ret_poly = (struct PolyObj*)malloc(sizeof(struct PolyObj));
-
-    srand(time(NULL));
-    randomval = rand() % MAX_NUMBER;
-    randomval = rand() % MAX_NUMBER;
     
     struct PolyObj *mx = encoder(num, "m");
-    struct PolyObj *rx = encoder(0, "rx");
+    struct PolyObj *rx = encoder(1, "rx");
     
-    // print_poly(mx);
-
     ret_poly = self->polyops.mulpoly(self->params.Kp, rx, self->params.q, "");
     for(int i = 0; i < NTRU_N; ++i){               
         ret_poly->coef[i] *= self->params.p;
         ret_poly->coef[i] = CENTERED_ZERO(ret_poly->coef[i], self->params.q);
     }
 
-    ret_poly = self->polyops.addpoly(ret_poly, mx, self->params.q, "cx");
-    // print_poly(ret_poly);
-    ret = ret_poly->coef;
+    struct PolyObj *ret_poly_ = self->polyops.addpoly(ret_poly, mx, self->params.q, "cx");
+
+#ifdef VALIDATION_MODE
+    print_poly(mx);
+    print_poly(ret_poly);
+#endif
+
+
+    for(int i = 0; i < ret_poly->buf_size; ++i){
+        ret[i] = ret_poly_->coef[i];
+    }
+
+
+    _free_poly(mx);
+    _free_poly(rx);
+    _free_poly(ret_poly);
+    _free_poly(ret_poly_);
 
     return ret;
 }
@@ -582,8 +601,18 @@ static int decrypt(struct NTRU *nt,int *self){
 
     ax = nt->polyops.mulpoly(cx, nt->params.fx, nt->params.q, "ax");
     ret = nt->polyops.mulpoly(nt->params.Fp, ax, nt->params.p, "mx");
-    // print_poly(ret);
+
+#ifdef VALIDATION_MODE
+    print_poly(cx);
+    print_poly(ret);
+#endif
+
     iret = decoder(ret);
+
+    _free_poly(ax);
+    _free_poly(ret);
+    _free_poly(cx);
+
     return iret;
 }
 
