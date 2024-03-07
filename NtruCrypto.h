@@ -1,9 +1,11 @@
 #ifndef _NTRUCRYPTO_H_
 #define _NTRUCRYPTO_H_
 
-#define NTRU_N 5                                            /*  N is prime   */
+#define NTRU_N 7                                            /*  N is prime   */
 #define NTRU_p 3                                            /* gcd(N, q) = 1 */
-#define NTRU_q 23                                          /* gcd(N, p) = 1 */
+#define NTRU_q 251                                          /* gcd(N, p) = 1 */
+
+// #define VALIDATION_MODE 1
 
 #define MAX_NUMBER ({                                                       \
     int max_number = 1;                                                     \
@@ -23,7 +25,7 @@
 })                                                            
 
 #define sizeof_poly(POLY) ((&POLY) -> poly -> size_)
-#define VALIDATION_ENABLE 1
+
 struct PolyObj{
 
     char poly_name[10];
