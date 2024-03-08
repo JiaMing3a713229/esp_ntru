@@ -557,9 +557,11 @@ static int check_key(struct NTRU *nt){
     return 1;
 }
 
-int key_gen(struct NTRU *nt, int *coef_f, int *coef_g){
+int key_gen(struct NTRU *nt, int *coef_f, int g_num){
 
-    
+    int coef_g[NTRU_N] = {0};
+    dec2arr(g_num, coef_g);
+
     if(nt == NULL){
         return -1;
     }
@@ -593,6 +595,14 @@ int key_gen(struct NTRU *nt, int *coef_f, int *coef_g){
     }
     printf("-------------------key-Generator-step-End---------------\r\n");
 
+    return 1;
+}
+
+static int free_key(struct NTRU *nt){
+    
+    free(nt->params.Fp);
+    free(nt->params.Fq);
+    free(nt->params.Kp);
     return 1;
 }
 
@@ -687,6 +697,7 @@ int init_nt(struct NTRU *self, int N, int p, int q)
     self->encrypt = encrypt;
     self->decrypt = decrypt;
     self->key_gen = key_gen;
+    self->free_key = free_key;
     return 1;
 };
 

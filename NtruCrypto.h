@@ -38,7 +38,8 @@ struct PolyObj{
 
 struct NTRU{
 
-    int (*key_gen)(struct NTRU *nt, int *coef_f, int *coef_g);
+    int (*key_gen)(struct NTRU *nt, int *coef_f, int coef_g);
+    int (*free_key)(struct NTRU *nt);
     int *(*encrypt)(struct NTRU *self, int num, int randnum);
     int (*decrypt)(struct NTRU *nt,int *self);
     struct Parameter{
